@@ -1,0 +1,72 @@
+<section class="budget-show">
+<h1><%= @budget.title %></h1>
+
+<div class="budget-show-container">
+<section class="budget-show-allotments">
+  <h2>Allotments
+  <small><%= if(@remaining_hours > 0, do: "(Hours Left: " <> to_string(@remaining_hours) <> ")") %></small>
+  </h2>
+
+
+  <%= for line <- @budget_lines do %>
+  <div class="budget-line" id="budget-line-<%= line.db.id %>">
+    <form class="budget-line-form" id="budget-line-form-<%= line.db.id %>" phx-change="budget_line_update">
+      <input type="hidden" name="id" value=<%= line.db.id %>>
+      <select class="budget-line-category" name="category_id">
+        <%= for {id,name} <- @categories do %>
+          <option
+            <%= if(id == line.db.category_id, do: "selected") %>
+            value=<%= id %>
+            >
+            <%= name %>
+          </option>
+        <% end %>
+      </select>
+      <input class="budget-line-hour" name="hours" type="number" value=<%= line.db.hours %> />
+      <span class="budget-line-percentage"><%= line.percentage  %>%</span>
+      <span
+        <%= cond do %>
+          <% line.remaining < 0 -> %>
+            class="budget-line-remaining budget-line-remaining--overbudget"
+          <%line.remaining > 0 -> %>
+            class="budget-line-remaining budget-line-remaining--underbudget"
+          <%= true -> %>
+            class="budget-line-remaining"
+        <% end %>
+        ><%= line.remaining %>
+      </span>
+      <%= link "🗑️", to: "#", phx_click: "budget_line_delete", phx_value_id: line.db.id %>
+    </form>
+  </div>
+  <% end %>
+  <span><%= link "New Allotment", to: "#", phx_click: "budget_line_create" %></span>
+</section>
+
+<section class="budget-show-logs">
+  <h2>Time Spent</h2>
+
+  <%= for log <- @time_logs do %>
+  <div class="time-log" id="time-log-<%= log.id %>">
+    <form class="time-log-form" id="time-log-form-<%= log.id %>" phx-change="time_log_update">
+      <input type="hidden" name="id" value=<%= log.id %>>
+      <input class="time-log-day" type="date" name="day" value="<%= log.day %>">
+      <select class="time-log-budget-line-id" name="budget_line_id">
+        <option>None</option>
+        <%= for bl <- @budget_lines do %>
+          <option
+            <%= if(bl.db.id == log.budget_line_id, do: "selected") %>
+            value=<%= bl.db.id %>
+            >
+            <%= @categories[bl.db.category_id] %>
+          </option>
+        <% end %>
+      </select>
+      <input class="time-log-hour" name="hours" type="number" value=<%= log.hours %> />
+      <%= link "🗑️", to: "#", phx_click: "time_log_delete", phx_value_id: log.id %>
+    </form>
+  </div>
+  <% end %>
+  <span><%= link "Create Timelog", to: "#", phx_click: "time_log_create" %></span>
+</section>
+</div>
+</section>

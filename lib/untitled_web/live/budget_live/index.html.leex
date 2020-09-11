@@ -1,0 +1,18 @@
+<h1>Budgets</h1>
+
+<%= if @live_action in [:new] do %>
+  <%= live_modal @socket, UntitledWeb.BudgetLive.FormComponent,
+    id: @budget.id || :new,
+    title: @page_title,
+    action: @live_action,
+    budget: @budget,
+    return_to: Routes.budget_index_path(@socket, :index) %>
+<% end %>
+
+<span><%= live_patch "New Budget", to: Routes.budget_index_path(@socket, :new) %></span>
+
+<ul>
+  <%= for budget <- @budgets do %>
+    <li><span><%= live_redirect budget.title , to: Routes.budget_show_path(@socket, :show, budget) %></span></li>
+  <% end %>
+</ul>
