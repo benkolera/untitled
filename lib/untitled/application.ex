@@ -14,9 +14,10 @@ defmodule Untitled.Application do
       # Start the PubSub system
       {Phoenix.PubSub, name: Untitled.PubSub},
       # Start the Endpoint (http/https)
-      UntitledWeb.Endpoint
+      UntitledWeb.Endpoint,
       # Start a worker by calling: Untitled.Worker.start_link(arg)
       # {Untitled.Worker, arg}
+      Untitled.Timer
     ]
 
     # See https://hexdocs.pm/elixir/Supervisor.html

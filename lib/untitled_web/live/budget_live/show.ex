@@ -23,7 +23,9 @@ defmodule UntitledWeb.BudgetLive.Show do
      socket
      |> assign(:page_title, "Budget")
      |> load_budget(id)
-     |> assign(:categories, categories)}
+     |> assign(:categories, categories)
+     |> assign(:timer, nil)
+     |> assign(:sounds, [])}
   end
 
   @impl true
@@ -51,17 +53,7 @@ defmodule UntitledWeb.BudgetLive.Show do
   end
 
   def handle_event("time_log_create", _data, socket) do
-    {{y, m, d}, _} = :calendar.local_time()
-    {:ok, date} = Date.new(y, m, d)
-
-    res =
-      Chronoallot.create_time_log(%{
-        day: Date.to_iso8601(date),
-        budget_id: socket.assigns.budget.id,
-        hours: 0
-      })
-
-    IO.puts(inspect(res))
+    new_time_log(socket.assigns.budget.id, 0, nil)
     {:noreply, socket}
   end
 
@@ -80,9 +72,58 @@ defmodule UntitledWeb.BudgetLive.Show do
     {:noreply, socket}
   end
 
+  def handle_event("timer_start", %{"id" => blid}, socket) do
+    {minutes, seconds} = Untitled.Timer.start(60 * 25) |> calculate_minutes_seconds()
+
+    {:noreply,
+     assign(socket, :timer, %{
+       budget_line_id: String.to_integer(blid),
+       minutes: minutes,
+       seconds: seconds
+     })}
+  end
+
+  def handle_event("timer_stop", _, socket) do
+    Untitled.Timer.cancel()
+    {:noreply, assign(socket, :timer, nil)}
+  end
+
   @impl true
   def handle_info({Chronoallot, [id, _, _], _}, socket) do
     {:noreply, load_budget(socket, id)}
+  end
+
+  def handle_info({Untitled.Timer, :done}, socket) do
+    if socket.assigns.timer != nil do
+      new_time_log(socket.assigns.budget.id, 0.5, socket.assigns.timer.budget_line_id)
+
+      {:noreply,
+       socket
+       |> assign(:timer, nil)
+       |> assign(:sounds, ["/sfx/alarm.mp3"])}
+    else
+      {:noreply, socket}
+    end
+  end
+
+  def handle_info({Untitled.Timer, :tick, seconds_left}, socket) do
+    if socket.assigns.timer != nil do
+      {minutes, seconds} = calculate_minutes_seconds(seconds_left)
+
+      sounds =
+        if seconds_left > 0 and seconds == 0 do
+          ["/sfx/bowl.mp3"]
+        else
+          []
+        end
+
+      {:noreply,
+       socket
+       |> update(:timer, fn x -> %{x | minutes: minutes, seconds: seconds} end)
+       |> assign(:sounds, sounds)}
+    else
+      {:noreply, socket}
+    end
   end
 
   defp load_budget(socket, id) do
@@ -117,5 +158,28 @@ defmodule UntitledWeb.BudgetLive.Show do
     |> assign(:remaining_hours, remaining_hours)
     |> assign(:budget_hours, weekly_hours)
     |> assign(:time_logs, time_logs)
+  end
+
+  defp calculate_minutes_seconds(seconds_left) do
+    {
+      String.pad_leading(to_string(div(seconds_left, 60)), 2, "0"),
+      String.pad_leading(to_string(rem(seconds_left, 60)), 2, "0")
+    }
+  end
+
+  # todo should be in model
+  defp new_time_log(budget_id, hours, budget_line_id) do
+    {{y, m, d}, _} = :calendar.local_time()
+    {:ok, date} = Date.new(y, m, d)
+
+    res =
+      Chronoallot.create_time_log(%{
+        day: Date.to_iso8601(date),
+        budget_id: budget_id,
+        budget_line_id: budget_line_id,
+        hours: hours
+      })
+
+    res
   end
 end

@@ -1,10 +1,27 @@
 <section class="budget-show">
-<h1><%= @budget.title %></h1>
+<section class="budget-show-header">
+<h1 class="budget-title"><%= @budget.title %></h1>
+<script type="text/javascript">initSFX()</script>
+
+<div class="budget-timer">
+<%= if @timer do %>
+<%= @timer.minutes %><span class="budget-timer-active">:</span><%= @timer.seconds %>
+<%= else %>
+00:00
+<% end %>
+</div>
+</section>
 
 <div class="budget-show-container">
 <section class="budget-show-allotments">
   <h2>Allotments
-  <small><%= if(@remaining_hours > 0, do: "(Hours Left: " <> to_string(@remaining_hours) <> ")") %></small>
+  <%= cond do %>
+    <% @remaining_hours > 0 -> %>
+      <small>(Hours Left: <%= @remaining_hours %>)</small>
+    <% @remaining_hours < 0 -> %>
+      <small style="color: red">(Overbudget: <%= abs(@remaining_hours) %>)</small>
+    <% true -> %>
+  <% end %>
   </h2>
 
 
@@ -36,6 +53,13 @@
         ><%= line.remaining %>
       </span>
       <%= link "🗑️", to: "#", phx_click: "budget_line_delete", phx_value_id: line.db.id %>
+      <%= cond do %>
+        <% @timer == nil -> %>
+          <%= link "⏱️", to: "#", phx_click: "timer_start", phx_value_id: line.db.id %>
+        <% @timer != nil and @timer.budget_line_id == line.db.id -> %>
+          <%= link "️🛑", to: "#", phx_click: "timer_stop" %>
+        <% true -> %>
+      <% end %>
     </form>
   </div>
   <% end %>
@@ -70,3 +94,8 @@
 </section>
 </div>
 </section>
+<div id="sound-fx">
+  <%= for sound <- @sounds do %>
+    <span id=<%= sound %> data-src=<%= sound %>>
+  <% end %>
+</div>

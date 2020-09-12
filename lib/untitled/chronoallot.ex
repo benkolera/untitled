@@ -114,7 +114,7 @@ defmodule Untitled.Chronoallot do
     Repo.all(
       from tl in TimeLog,
         where: tl.budget_id == ^budget_id,
-        order_by: [asc: tl.day, asc: tl.id],
+        order_by: [desc: tl.day, desc: tl.inserted_at],
         select: tl
     )
   end
