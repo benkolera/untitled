@@ -41,13 +41,9 @@ defmodule UntitledWeb.BudgetLive.Show do
   end
 
   def handle_event("budget_line_update", budget_line_params, socket) do
-    IO.puts(inspect(budget_line_params))
-
     res =
       Chronoallot.get_budget_line!(budget_line_params["id"])
       |> Chronoallot.update_budget_line(Map.delete(budget_line_params, "id"))
-
-    IO.puts(inspect(res))
 
     {:noreply, socket}
   end
@@ -128,7 +124,6 @@ defmodule UntitledWeb.BudgetLive.Show do
 
   defp load_budget(socket, id) do
     weekly_hours = 24 * 7
-
     time_logs = Chronoallot.list_time_logs(id)
 
     time_spent =
@@ -137,7 +132,17 @@ defmodule UntitledWeb.BudgetLive.Show do
       |> Enum.map(fn {k, v} -> {k, v |> Enum.map(fn x -> x.hours end) |> Enum.sum()} end)
       |> Map.new()
 
-    IO.puts(inspect(time_spent))
+    time_logs_by_day =
+      time_logs
+      |> Enum.group_by(fn x -> x.day end)
+      |> Enum.map(fn {d, logs} ->
+        %{
+          day: d,
+          logs: logs,
+          spent: logs |> Enum.map(fn x -> x.hours end) |> Enum.sum()
+        }
+      end)
+      |> Enum.sort_by(fn m -> m.day end, :desc)
 
     lines =
       Chronoallot.list_budget_lines(id)
@@ -157,7 +162,7 @@ defmodule UntitledWeb.BudgetLive.Show do
     |> assign(:budget_lines, lines)
     |> assign(:remaining_hours, remaining_hours)
     |> assign(:budget_hours, weekly_hours)
-    |> assign(:time_logs, time_logs)
+    |> assign(:time_logs, time_logs_by_day)
   end
 
   defp calculate_minutes_seconds(seconds_left) do
@@ -169,8 +174,7 @@ defmodule UntitledWeb.BudgetLive.Show do
 
   # todo should be in model
   defp new_time_log(budget_id, hours, budget_line_id) do
-    {{y, m, d}, _} = :calendar.local_time()
-    {:ok, date} = Date.new(y, m, d)
+    date = today_date()
 
     res =
       Chronoallot.create_time_log(%{
@@ -181,5 +185,11 @@ defmodule UntitledWeb.BudgetLive.Show do
       })
 
     res
+  end
+
+  defp today_date() do
+    {{y, m, d}, _} = :calendar.local_time()
+    {:ok, date} = Date.new(y, m, d)
+    date
   end
 end
