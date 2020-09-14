@@ -2,6 +2,7 @@ defmodule Untitled.Timer do
   use GenServer
   require Logger
 
+  @topic inspect(__MODULE__)
   @name {:global, __MODULE__}
 
   def start_link(init) do
@@ -9,61 +10,75 @@ defmodule Untitled.Timer do
   end
 
   def start(id, duration \\ 1500) do
-    GenServer.call(@name, {:start, duration, id})
+    GenServer.cast(@name, {:start, duration, id})
   end
 
   def cancel() do
-    send(@name, :cancel)
+    GenServer.cast(@name, :cancel)
   end
 
-  def reconnect() do
-    GenServer.call(@name, {:reconnect})
+  def subscribe() do
+    Phoenix.PubSub.subscribe(Untitled.PubSub, @topic)
+    GenServer.cast(@name, {:reconnect})
   end
 
   ## SERVER ##
   @impl true
   def init(_state) do
-    Logger.warn("timer server started")
-    state = %{timer_ref: nil, timer: nil, caller: nil}
-    {:ok, state}
+    {:ok, nil}
   end
 
   @impl true
-  def handle_info(:cancel, %{timer_ref: ref}) do
-    cancel_timer(ref)
-    {:noreply, %{timer_ref: nil, timer: nil, caller: nil, id: nil}}
+  def handle_info(:update, nil) do
+    {:noreply, nil}
   end
 
-  def handle_info(:update, %{timer: 0, caller: from}) do
-    send(from, {__MODULE__, :done})
-    {:noreply, %{timer_ref: nil, timer: nil, caller: nil, id: nil}}
+  def handle_info(:update, %{timer: 0, id: id}) do
+    broadcast({:done, id})
+    {:noreply, nil}
   end
 
   def handle_info(:update, data) do
     leftover = data.timer - 1
     timer_ref = schedule_timer(1_000)
-    send(data.caller, {__MODULE__, :tick, leftover})
+    broadcast({:tick, data.id, leftover})
     {:noreply, %{data | timer: leftover, timer_ref: timer_ref}}
   end
 
   @impl true
-  def handle_call({:start, duration, id}, {caller_pid, _}, %{timer_ref: old_timer_ref}) do
-    cancel_timer(old_timer_ref)
+  def handle_cast({:start, duration, id}, data) do
+    if data do
+      cancel_timer(data.timer_ref)
+    end
+
     timer_ref = schedule_timer(1_000)
-    {:reply, duration, %{timer_ref: timer_ref, timer: duration, id: id, caller: caller_pid}}
+    broadcast({:started, id, duration})
+    {:noreply, %{timer_ref: timer_ref, timer: duration, id: id}}
   end
 
-  def handle_call({:reconnect}, {caller_pid, _}, data) do
-    IO.puts(inspect(data))
-
-    if data.timer_ref != nil do
-      {:reply, {data.timer, data.id}, %{data | caller: caller_pid}}
-    else
-      {:reply, nil, data}
+  def handle_cast({:reconnect}, data) do
+    if data do
+      broadcast({:started, data.id, data.duration})
     end
+
+    {:noreply, data}
+  end
+
+  def handle_cast(:cancel, nil) do
+    {:noreply, nil}
+  end
+
+  def handle_cast(:cancel, %{timer_ref: ref, id: id}) do
+    cancel_timer(ref)
+    broadcast({:cancelled, id})
+    {:noreply, nil}
   end
 
   defp schedule_timer(interval), do: Process.send_after(self(), :update, interval)
   defp cancel_timer(nil), do: :ok
   defp cancel_timer(ref), do: Process.cancel_timer(ref)
+
+  defp broadcast(evt) do
+    Phoenix.PubSub.broadcast(Untitled.PubSub, @topic, {__MODULE__, evt})
+  end
 end

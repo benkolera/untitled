@@ -12,9 +12,10 @@ defmodule UntitledWeb.BudgetLive.Show do
   @spec handle_params(map, any, Phoenix.LiveView.Socket.t()) ::
           {:noreply, Phoenix.LiveView.Socket.t()}
   def handle_params(%{"id" => id}, _, socket) do
-    if connected?(socket), do: Chronoallot.subscribe_budget(id)
-
-    timer = if connected?(socket), do: Untitled.Timer.reconnect()
+    if connected?(socket) do
+      Chronoallot.subscribe_budget(id)
+      Untitled.Timer.subscribe()
+    end
 
     categories =
       Chronoallot.list_categories()
@@ -26,7 +27,7 @@ defmodule UntitledWeb.BudgetLive.Show do
      |> assign(:page_title, "Budget")
      |> load_budget(id)
      |> assign(:categories, categories)
-     |> assign_timer_optional(timer)
+     |> assign(:timer, nil)
      |> assign(:sounds, [])}
   end
 
@@ -69,25 +70,32 @@ defmodule UntitledWeb.BudgetLive.Show do
   def handle_event("time_log_update", time_log_params, socket) do
     Chronoallot.get_time_log!(time_log_params["id"])
     |> Chronoallot.update_time_log(Map.delete(time_log_params, "id"))
-    |> inspect()
-    |> IO.puts()
 
     {:noreply, socket}
   end
 
   def handle_event("timer_start", %{"id" => blid_str}, socket) do
     blid = String.to_integer(blid_str)
-    {:noreply, assign_timer(socket, Untitled.Timer.start(blid, 60 * 25), blid)}
+    Untitled.Timer.start(blid, 60 * 25)
+    {:noreply, socket}
   end
 
   def handle_event("timer_stop", _, socket) do
     Untitled.Timer.cancel()
-    {:noreply, assign(socket, :timer, nil)}
+    {:noreply, socket}
   end
 
   @impl true
   def handle_info({Chronoallot, [id, _, _], _}, socket) do
     {:noreply, load_budget(socket, id)}
+  end
+
+  def handle_info({Untitled.Timer, {:started, id, seconds}}, socket) do
+    {:noreply, assign_timer(socket, seconds, id)}
+  end
+
+  def handle_info({Untitled.Timer, {:cancelled, _id}}, socket) do
+    {:noreply, assign(socket, timer: nil)}
   end
 
   def handle_info({Untitled.Timer, :done}, socket) do
@@ -103,12 +111,10 @@ defmodule UntitledWeb.BudgetLive.Show do
     end
   end
 
-  def handle_info({Untitled.Timer, :tick, seconds_left}, socket) do
+  def handle_info({Untitled.Timer, {:tick, id, seconds_left}}, socket) do
     if socket.assigns.timer != nil do
-      {minutes, seconds} = calculate_minutes_seconds(seconds_left)
-
       sounds =
-        if seconds_left > 0 and seconds == 0 do
+        if seconds_left > 0 and rem(seconds_left, 60) == 0 do
           ["/sfx/bowl.mp3"]
         else
           []
@@ -116,7 +122,7 @@ defmodule UntitledWeb.BudgetLive.Show do
 
       {:noreply,
        socket
-       |> update(:timer, fn x -> %{x | minutes: minutes, seconds: seconds} end)
+       |> assign_timer(seconds_left, id)
        |> assign(:sounds, sounds)}
     else
       {:noreply, socket}
