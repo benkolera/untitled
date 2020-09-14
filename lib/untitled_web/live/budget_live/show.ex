@@ -188,8 +188,7 @@ defmodule UntitledWeb.BudgetLive.Show do
   end
 
   defp today_date() do
-    {{y, m, d}, _} = :calendar.local_time()
-    {:ok, date} = Date.new(y, m, d)
-    date
+    {:ok, dt} = DateTime.now("Australia/Brisbane")
+    DateTime.to_date(dt)
   end
 end
