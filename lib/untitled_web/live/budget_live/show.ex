@@ -76,7 +76,7 @@ defmodule UntitledWeb.BudgetLive.Show do
 
   def handle_event("timer_start", %{"id" => blid_str}, socket) do
     blid = String.to_integer(blid_str)
-    Untitled.Timer.start(blid, 60 * 25)
+    Untitled.Timer.start(blid, 65)
     {:noreply, socket}
   end
 
@@ -98,9 +98,9 @@ defmodule UntitledWeb.BudgetLive.Show do
     {:noreply, assign(socket, timer: nil)}
   end
 
-  def handle_info({Untitled.Timer, :done}, socket) do
+  def handle_info({Untitled.Timer, {:done, id}}, socket) do
     if socket.assigns.timer != nil do
-      new_time_log(socket.assigns.budget.id, 0.5, socket.assigns.timer.budget_line_id)
+      new_time_log(socket.assigns.budget.id, 0.5, id)
 
       {:noreply,
        socket
@@ -114,7 +114,7 @@ defmodule UntitledWeb.BudgetLive.Show do
   def handle_info({Untitled.Timer, {:tick, id, seconds_left}}, socket) do
     if socket.assigns.timer != nil do
       sounds =
-        if seconds_left > 0 and rem(seconds_left, 60) == 0 do
+        if seconds_left > 0 and rem(seconds_left, 120) == 0 do
           ["/sfx/bowl.mp3"]
         else
           []

@@ -25,6 +25,7 @@ defmodule Untitled.Timer do
   ## SERVER ##
   @impl true
   def init(_state) do
+    IO.puts("INIT")
     {:ok, nil}
   end
 
@@ -57,8 +58,8 @@ defmodule Untitled.Timer do
   end
 
   def handle_cast({:reconnect}, data) do
-    if data do
-      broadcast({:started, data.id, data.duration})
+    if data != nil do
+      broadcast({:started, data.id, data.timer})
     end
 
     {:noreply, data}
