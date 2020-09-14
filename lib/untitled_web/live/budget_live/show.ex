@@ -49,6 +49,12 @@ defmodule UntitledWeb.BudgetLive.Show do
     {:noreply, socket}
   end
 
+  def handle_event("budget_line_create_time_log", budget_line_params, socket) do
+    {:noreply, socket}
+    new_time_log(socket.assigns.budget.id, 0, budget_line_params["id"])
+    {:noreply, socket}
+  end
+
   def handle_event("time_log_create", _data, socket) do
     new_time_log(socket.assigns.budget.id, 0, nil)
     {:noreply, socket}
@@ -69,7 +75,8 @@ defmodule UntitledWeb.BudgetLive.Show do
     {:noreply, socket}
   end
 
-  def handle_event("timer_start", %{"id" => blid}, socket) do
+  def handle_event("timer_start", %{"id" => blid_str}, socket) do
+    blid = String.to_integer(blid_str)
     {:noreply, assign_timer(socket, Untitled.Timer.start(blid, 60 * 25), blid)}
   end
 

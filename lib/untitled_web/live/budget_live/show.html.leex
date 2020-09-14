@@ -53,13 +53,14 @@
         ><%= line.remaining %>
       </span>
       <%= link "🗑️", to: "#", phx_click: "budget_line_delete", phx_value_id: line.db.id %>
+      <%= link "️📝", to: "#", phx_click: "budget_line_create_time_log", phx_value_id: line.db.id %>
       <%= cond do %>
         <% @timer == nil -> %>
           <%= link "⏱️", to: "#", phx_click: "timer_start", phx_value_id: line.db.id %>
         <% @timer != nil and @timer.budget_line_id == line.db.id -> %>
           <%= link "️🛑", to: "#", phx_click: "timer_stop" %>
         <% true -> %>
-      <% end %>
+        <% end %>
     </form>
   </div>
   <% end %>
