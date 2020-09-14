@@ -76,7 +76,7 @@ defmodule UntitledWeb.BudgetLive.Show do
 
   def handle_event("timer_start", %{"id" => blid_str}, socket) do
     blid = String.to_integer(blid_str)
-    Untitled.Timer.start(blid, 65)
+    Untitled.Timer.start(blid, 60 * 25)
     {:noreply, socket}
   end
 
