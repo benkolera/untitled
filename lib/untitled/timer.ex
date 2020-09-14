@@ -8,12 +8,16 @@ defmodule Untitled.Timer do
     GenServer.start_link(__MODULE__, init, name: @name)
   end
 
-  def start(duration \\ 1500) do
-    GenServer.call(@name, {:start, duration})
+  def start(id, duration \\ 1500) do
+    GenServer.call(@name, {:start, duration, id})
   end
 
   def cancel() do
     send(@name, :cancel)
+  end
+
+  def reconnect() do
+    GenServer.call(@name, {:reconnect})
   end
 
   ## SERVER ##
@@ -27,26 +31,36 @@ defmodule Untitled.Timer do
   @impl true
   def handle_info(:cancel, %{timer_ref: ref}) do
     cancel_timer(ref)
-    {:noreply, %{timer_ref: nil, timer: nil, caller: nil}}
+    {:noreply, %{timer_ref: nil, timer: nil, caller: nil, id: nil}}
   end
 
   def handle_info(:update, %{timer: 0, caller: from}) do
     send(from, {__MODULE__, :done})
-    {:noreply, %{timer_ref: nil, timer: nil, caller: nil}}
+    {:noreply, %{timer_ref: nil, timer: nil, caller: nil, id: nil}}
   end
 
-  def handle_info(:update, %{timer: time, caller: from}) do
-    leftover = time - 1
+  def handle_info(:update, data) do
+    leftover = data.timer - 1
     timer_ref = schedule_timer(1_000)
-    send(from, {__MODULE__, :tick, leftover})
-    {:noreply, %{timer_ref: timer_ref, timer: leftover, caller: from}}
+    send(data.caller, {__MODULE__, :tick, leftover})
+    {:noreply, %{data | timer: leftover, timer_ref: timer_ref}}
   end
 
   @impl true
-  def handle_call({:start, duration}, {caller_pid, _}, %{timer_ref: old_timer_ref}) do
+  def handle_call({:start, duration, id}, {caller_pid, _}, %{timer_ref: old_timer_ref}) do
     cancel_timer(old_timer_ref)
     timer_ref = schedule_timer(1_000)
-    {:reply, duration, %{timer_ref: timer_ref, timer: duration, caller: caller_pid}}
+    {:reply, duration, %{timer_ref: timer_ref, timer: duration, id: id, caller: caller_pid}}
+  end
+
+  def handle_call({:reconnect}, {caller_pid, _}, data) do
+    IO.puts(inspect(data))
+
+    if data.timer_ref != nil do
+      {:reply, {data.timer, data.id}, %{data | caller: caller_pid}}
+    else
+      {:reply, nil, data}
+    end
   end
 
   defp schedule_timer(interval), do: Process.send_after(self(), :update, interval)

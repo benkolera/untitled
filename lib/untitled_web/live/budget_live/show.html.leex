@@ -6,7 +6,7 @@
 <div class="budget-timer">
 <%= if @timer do %>
 <%= @timer.minutes %><span class="budget-timer-active">:</span><%= @timer.seconds %>
-<%= else %>
+<% else %>
 00:00
 <% end %>
 </div>
@@ -47,7 +47,7 @@
             class="budget-line-remaining budget-line-remaining--overbudget"
           <%line.remaining > 0 -> %>
             class="budget-line-remaining budget-line-remaining--underbudget"
-          <%= true -> %>
+          <% true -> %>
             class="budget-line-remaining"
         <% end %>
         ><%= line.remaining %>
