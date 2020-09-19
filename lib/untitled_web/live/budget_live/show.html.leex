@@ -64,11 +64,11 @@
     </form>
   </div>
   <% end %>
-  <%= button "+", to: "#", phx_click: "budget_line_create", class: "btn--add" %>
+  <button phx-click="budget_line_create" class="btn--add">+</button>
 </section>
 
 <section class="budget-show-logs">
-  <div style="float:right;"><%= button "+", to: "#", phx_click: "time_log_create", class: "btn--add" %></span></div>
+  <div style="float:right;"><button phx-click="time_log_create" class="btn--add">+</button></span></div>
   <h2>Time Spent</h2>
 
   <%= for tlog_group <- @time_logs do %>
