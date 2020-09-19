@@ -6,7 +6,7 @@
 <div class="budget-timer">
 <%= if @timer do %>
 <%= @timer.minutes %><span class="budget-timer-active">:</span><%= @timer.seconds %>
-<%= else %>
+<% else %>
 00:00
 <% end %>
 </div>
@@ -47,26 +47,28 @@
             class="budget-line-remaining budget-line-remaining--overbudget"
           <%line.remaining > 0 -> %>
             class="budget-line-remaining budget-line-remaining--underbudget"
-          <%= true -> %>
+          <% true -> %>
             class="budget-line-remaining"
         <% end %>
         ><%= line.remaining %>
       </span>
       <%= link "🗑️", to: "#", phx_click: "budget_line_delete", phx_value_id: line.db.id %>
+      <%= link "️📝", to: "#", phx_click: "budget_line_create_time_log", phx_value_id: line.db.id %>
       <%= cond do %>
         <% @timer == nil -> %>
           <%= link "⏱️", to: "#", phx_click: "timer_start", phx_value_id: line.db.id %>
         <% @timer != nil and @timer.budget_line_id == line.db.id -> %>
           <%= link "️🛑", to: "#", phx_click: "timer_stop" %>
         <% true -> %>
-      <% end %>
+        <% end %>
     </form>
   </div>
   <% end %>
-  <span><%= link "New Allotment", to: "#", phx_click: "budget_line_create" %></span>
+  <%= button "+", to: "#", phx_click: "budget_line_create", class: "btn--add" %>
 </section>
 
 <section class="budget-show-logs">
+  <div style="float:right;"><%= button "+", to: "#", phx_click: "time_log_create", class: "btn--add" %></span></div>
   <h2>Time Spent</h2>
 
   <%= for tlog_group <- @time_logs do %>
@@ -93,7 +95,6 @@
     </div>
     <% end %>
   <% end %>
-  <span><%= link "Create Timelog", to: "#", phx_click: "time_log_create" %></span>
 </section>
 </div>
 </section>

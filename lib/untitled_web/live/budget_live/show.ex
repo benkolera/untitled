@@ -12,7 +12,10 @@ defmodule UntitledWeb.BudgetLive.Show do
   @spec handle_params(map, any, Phoenix.LiveView.Socket.t()) ::
           {:noreply, Phoenix.LiveView.Socket.t()}
   def handle_params(%{"id" => id}, _, socket) do
-    if connected?(socket), do: Chronoallot.subscribe_budget(id)
+    if connected?(socket) do
+      Chronoallot.subscribe_budget(id)
+      Untitled.Timer.subscribe()
+    end
 
     categories =
       Chronoallot.list_categories()
@@ -41,10 +44,15 @@ defmodule UntitledWeb.BudgetLive.Show do
   end
 
   def handle_event("budget_line_update", budget_line_params, socket) do
-    res =
-      Chronoallot.get_budget_line!(budget_line_params["id"])
-      |> Chronoallot.update_budget_line(Map.delete(budget_line_params, "id"))
+    Chronoallot.get_budget_line!(budget_line_params["id"])
+    |> Chronoallot.update_budget_line(Map.delete(budget_line_params, "id"))
 
+    {:noreply, socket}
+  end
+
+  def handle_event("budget_line_create_time_log", budget_line_params, socket) do
+    {:noreply, socket}
+    new_time_log(socket.assigns.budget.id, 0, budget_line_params["id"])
     {:noreply, socket}
   end
 
@@ -62,26 +70,19 @@ defmodule UntitledWeb.BudgetLive.Show do
   def handle_event("time_log_update", time_log_params, socket) do
     Chronoallot.get_time_log!(time_log_params["id"])
     |> Chronoallot.update_time_log(Map.delete(time_log_params, "id"))
-    |> inspect()
-    |> IO.puts()
 
     {:noreply, socket}
   end
 
-  def handle_event("timer_start", %{"id" => blid}, socket) do
-    {minutes, seconds} = Untitled.Timer.start(60 * 25) |> calculate_minutes_seconds()
-
-    {:noreply,
-     assign(socket, :timer, %{
-       budget_line_id: String.to_integer(blid),
-       minutes: minutes,
-       seconds: seconds
-     })}
+  def handle_event("timer_start", %{"id" => blid_str}, socket) do
+    blid = String.to_integer(blid_str)
+    Untitled.Timer.start(blid, 60 * 25)
+    {:noreply, socket}
   end
 
   def handle_event("timer_stop", _, socket) do
     Untitled.Timer.cancel()
-    {:noreply, assign(socket, :timer, nil)}
+    {:noreply, socket}
   end
 
   @impl true
@@ -89,9 +90,17 @@ defmodule UntitledWeb.BudgetLive.Show do
     {:noreply, load_budget(socket, id)}
   end
 
-  def handle_info({Untitled.Timer, :done}, socket) do
+  def handle_info({Untitled.Timer, {:started, id, seconds}}, socket) do
+    {:noreply, assign_timer(socket, seconds, id)}
+  end
+
+  def handle_info({Untitled.Timer, {:cancelled, _id}}, socket) do
+    {:noreply, assign(socket, timer: nil)}
+  end
+
+  def handle_info({Untitled.Timer, {:done, id}}, socket) do
     if socket.assigns.timer != nil do
-      new_time_log(socket.assigns.budget.id, 0.5, socket.assigns.timer.budget_line_id)
+      new_time_log(socket.assigns.budget.id, 0.5, id)
 
       {:noreply,
        socket
@@ -102,12 +111,10 @@ defmodule UntitledWeb.BudgetLive.Show do
     end
   end
 
-  def handle_info({Untitled.Timer, :tick, seconds_left}, socket) do
+  def handle_info({Untitled.Timer, {:tick, id, seconds_left}}, socket) do
     if socket.assigns.timer != nil do
-      {minutes, seconds} = calculate_minutes_seconds(seconds_left)
-
       sounds =
-        if seconds_left > 0 and seconds == 0 do
+        if seconds_left > 0 and rem(seconds_left, 120) == 0 do
           ["/sfx/bowl.mp3"]
         else
           []
@@ -115,7 +122,7 @@ defmodule UntitledWeb.BudgetLive.Show do
 
       {:noreply,
        socket
-       |> update(:timer, fn x -> %{x | minutes: minutes, seconds: seconds} end)
+       |> assign_timer(seconds_left, id)
        |> assign(:sounds, sounds)}
     else
       {:noreply, socket}
@@ -188,8 +195,27 @@ defmodule UntitledWeb.BudgetLive.Show do
   end
 
   defp today_date() do
-    {{y, m, d}, _} = :calendar.local_time()
-    {:ok, date} = Date.new(y, m, d)
-    date
+    {:ok, dt} = DateTime.now("Australia/Brisbane")
+    DateTime.to_date(dt)
+  end
+
+  defp assign_timer(socket, seconds, budget_line_id) do
+    {minutes, seconds} = calculate_minutes_seconds(seconds)
+
+    assign(socket, :timer, %{
+      budget_line_id: budget_line_id,
+      minutes: minutes,
+      seconds: seconds
+    })
+  end
+
+  defp assign_timer_optional(socket, tpl) do
+    if tpl != nil do
+      {timer, blid} = tpl
+      assign_timer(socket, timer, blid)
+    else
+      socket
+      |> assign(timer: nil)
+    end
   end
 end

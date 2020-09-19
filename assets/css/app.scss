@@ -90,6 +90,16 @@
   display: none;
 }
 
+.btn--add {
+  width: 2em;
+  height: 2em;
+  line-height: 1em;
+  background-color: #56db56;
+  border-color: greenyellow;
+  padding: 0;
+  margin: 0;
+}
+
 
 .budget-show-header {
   display: flex;
@@ -113,10 +123,10 @@
   justify-content: space-between;
 
   .budget-show-allotments {
-    flex-basis: 400px;
+    flex-basis: 460px;
   }
   .budget-show-logs {
-    flex-basis: 400px;
+    flex-basis: 420px;
   }
   .budget-line {
     margin-bottom: 0.1em;
